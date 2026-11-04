@@ -1,0 +1,61 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# Compila mantix_demo.exe en Windows SIN instalar nada en tu PC.
+#
+# Cómo se usa (más detalles en GUIA_WINDOWS.md, sección «Opción B»):
+#   1) Sube esta carpeta a un repositorio de GitHub (privado vale).
+#   2) Pestaña Actions → «Compilar Mantix Demo (Windows)» → botón Run workflow.
+#   3) A los ~10-15 min descarga el artefacto mantix_demo_windows.zip
+#      (dentro está mantix_demo.exe con sus DLL y data).
+# ─────────────────────────────────────────────────────────────────────────────
+
+name: Compilar Mantix Demo (Windows)
+
+on:
+  # Botón manual «Run workflow» en la pestaña Actions de GitHub.
+  workflow_dispatch:
+
+  # También corre sola en cada subida que toque el código de la app.
+  push:
+    branches: [main, master]
+    paths:
+      - 'lib/**'
+      - 'pubspec.yaml'
+      - 'windows/**'
+
+jobs:
+  build:
+    name: Compilar mantix_demo.exe
+    runs-on: windows-latest
+
+    steps:
+      - name: Bajar el código del repositorio
+        uses: actions/checkout@v4
+
+      - name: Instalar Flutter (estable)
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Descargar las dependencias del proyecto
+        run: flutter pub get
+
+      - name: Compilar la aplicación de Windows
+        run: flutter build windows --release
+
+      - name: Empaquetar la carpeta Release en un ZIP
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          Compress-Archive `
+            -Path 'build/windows/x64/runner/Release/*' `
+            -DestinationPath 'mantix_demo_windows.zip' `
+            -Force
+
+      - name: Publicar el ZIP como artefacto descargable
+        uses: actions/upload-artifact@v4
+        with:
+          name: mantix_demo_windows
+          path: mantix_demo_windows.zip
+          retention-days: 14
+          if-no-files-found: error
